@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 Sabinok Corporation -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
 # PDF Analyzer
 
 This repository contains a Gemini-backed archive analysis tool for answering one research question over a directory tree of PDFs. The supported system is the `pdf_analyzer` package in `src/pdf_analyzer/`.
@@ -22,7 +25,7 @@ uv sync
 Run the analyzer with a YAML config:
 
 ```bash
-uv run analyze pdf-analyzer.example.yaml
+uv run pdf-analyzer pdf-analyzer.example.yaml
 ```
 
 Runtime environment:
@@ -42,18 +45,23 @@ question: What does this archive say about bridge safety?
 name_clustering: local
 ignore_dirs_containing: .pdfdata
 report_html_filename: report.html
+normalize_pdf: false
 flatten_pdf: false
 flatten_dpi: 300
 schema_version: v1
 ```
 
-Optional overrides such as `model`, `workers`, `oversize_strategy`, `name_clustering`, `ignore_dirs_containing`, `report_html_filename`, `flatten_pdf`, `flatten_dpi`, `prompt_version`, `schema_version`, and `synthesis_prompt_version` are also supported. `name_clustering` defaults to `local` and also supports `gemini`.
+Optional overrides such as `model`, `workers`, `oversize_strategy`, `name_clustering`, `ignore_dirs_containing`, `report_html_filename`, `normalize_pdf`, `flatten_pdf`, `flatten_dpi`, `prompt_version`, `schema_version`, and `synthesis_prompt_version` are also supported. `name_clustering` defaults to `local` and also supports `gemini`.
+
+`pdf_directory` accepts one input path or a list of input paths. Each input path may be a PDF file or a directory scanned recursively for PDFs.
 
 `ignore_dirs_containing` controls recursive PDF discovery. It may be one marker filename or a list of marker filenames. Any scanned directory containing one of those files is skipped, including all of its children. The default is `.pdfdata`; each run writes that hidden JSON marker into `output_directory`, so an output directory inside the PDF archive is not rescanned as source input.
 
 `report_html_filename` controls the HTML report filename inside `output_directory`. It defaults to `report.html` and must be a filename, not a path.
 
-Report PDF copies are normalized to PDF/A when veraPDF reports non-compliance or policy checks detect JavaScript, encryption, signatures, embedded files, launch actions, multimedia, external file streams, interactive forms, or URI actions. `flatten_pdf` defaults to `false`; when set to `true`, normalization renders pages to bitmap PDF at `flatten_dpi` before producing PDF/A.
+When `normalize_pdf` is `false`, responsive report PDFs are cloned into `output_directory/pdfs/` with copy-on-write filesystem cloning when available, falling back to ordinary file copies. When `normalize_pdf` is `true`, those report PDFs are normalized to PDF/A when veraPDF reports non-compliance or policy checks detect JavaScript, encryption, signatures, embedded files, launch actions, multimedia, external file streams, interactive forms, or URI actions. `flatten_pdf` defaults to `false`; when set to `true`, normalization renders pages to bitmap PDF at `flatten_dpi` before producing PDF/A.
+
+Use `uv run pdf-analyzer --list-models` to list Gemini models that are relevant for PDF analysis. The list excludes non-document endpoints such as embedding, image generation, live audio, TTS, robotics, and video models, and includes a price-basis column for pricing-page aliases or missing token prices.
 
 ## Extraction Schema
 
@@ -104,7 +112,7 @@ Each project run writes durable artifacts into `output_directory`:
 - `pdf_analyzer.sqlite3`
 - the configured HTML report, defaulting to `report.html`
 - `report.xlsx`
-- `pdfs/` containing copied responsive PDFs only; copies that are not valid PDF/A or that fail cross-domain policy checks are normalized to PDF/A before being linked
+- `pdfs/` containing responsive PDFs only; when `normalize_pdf` is false, these are copy-on-write clones where supported, falling back to ordinary copies; when `normalize_pdf` is true, copies that are not valid PDF/A or that fail cross-domain policy checks are normalized to PDF/A before being linked
 - `.pdfdata` containing output metadata such as the run timestamp
 - `.gitignore` containing `*`, so generated output stays untracked when the output directory is inside the repository
 - a copy of the YAML config used for the run
@@ -133,11 +141,27 @@ Intermediate prepared PDFs are written to a temporary directory for the duration
   Focused note on document analysis, synthesis, and report data flow.
 - `doc/name-matching.md`
   Focused note on authoritative-name clustering, current options, and alternative approaches.
+- `LICENSE`, `NOTICE`, and `LICENSE-OPTIONS.md`
+  Public GPL license, Sabinok Corporation project notice, and alternate-license contact information.
+- `CONTRIBUTING.md`
+  Pull request policy, including contributor-agreement requirements for substantive outside contributions.
+
+## License
+
+Sabinok PDF is a Sabinok Corporation project.
+
+This project is released under the GNU General Public License, version 3 or
+later. Less restrictive commercial, research, institutional, or other licenses
+are available from Sabinok Corporation; contact Simson Garfinkel for
+information.
+
+Substantive outside pull requests require a signed contributor license agreement
+before merge so that Sabinok Corporation can continue to offer alternate
+licenses. Contributors keep their copyright.
 
 ## Notes
 
-- `uv run analyze ...` is the preferred CLI.
-- `uv run pdf-analyzer ...` remains as a compatibility alias.
+- `uv run pdf-analyzer ...` is the preferred CLI.
 - `uv run pdfa-fix file1.pdf file2.pdf` checks listed files, normalizes flagged PDFs to PDF/A in place, and prints only normalized paths and non-PDF input paths.
 - Ghostscript (`gs`) and veraPDF (`verapdf`) must be installed and on `PATH`; startup and `make check` fail early when either is missing.
 - The only runtime environment variable currently used by the application code is `GEMINI_API_KEY`.
